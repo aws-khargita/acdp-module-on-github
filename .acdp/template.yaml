@@ -1,0 +1,96 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  description: Github based test module
+  name: acdp-module-on-github
+  tags:
+  - github
+  - test
+  title: ACDP Module on GitHub
+spec:
+  output:
+    links:
+    - entityRef: ${{ steps.register.output.entityRef }}
+      icon: catalog
+      title: Open in catalog
+  owner: aws solutions
+  parameters:
+  - properties:
+      componentId:
+        default: acdp-module-on-github
+        description: Unique name of the component
+        pattern: '[a-zA-Z][-a-zA-Z0-9]*[a-zA-Z]'
+        title: Name
+        type: string
+        ui:field: EntityNamePicker
+      description:
+        default: A CDK Python app for showing a basic skeleton for a ACDP module
+        description: Help others understand what this component is for.
+        title: Description
+        type: string
+      owner:
+        description: Owner of the component
+        title: Owner
+        type: string
+        ui:field: OwnerPicker
+        ui:options:
+          catalogFilter:
+            kind:
+            - Group
+            - User
+    required:
+    - componentId
+    - owner
+    title: Provide the required information
+  - properties:
+      appUniqueId:
+        default: cms
+        description: Application unique identifier used to uniquely name resources within the stack
+        title: App Unique ID
+        type: string
+      cfnTemplateKey:
+        default: acdp-module-on-github/acdp-module-on-github.template
+        description: Location of module CloudFormation template in s3.
+        title: Relative template s3 key
+        type: string
+        ui:disabled: true
+    required:
+    - appUniqueId
+    - cfnTemplateKey
+    title: Provide the Module Configuration
+  steps:
+  - action: aws:acdp:deploy
+    id: acdpDeploy
+    input:
+      cfnTemplateKey: ${{ parameters.cfnTemplateKey }}
+      componentId: ${{ parameters.componentId }}
+      moduleParameters:
+      - name: APP_UNIQUE_ID
+        value: ${{ parameters.appUniqueId }}
+    name: ACDP Deploy
+  - action: aws:s3:catalog:write
+    id: s3CatalogWrite
+    input:
+      componentId: ${{ parameters.componentId }}
+      entity:
+        apiVersion: backstage.io/v1alpha1
+        kind: Component
+        metadata:
+          annotations:
+            aws.amazon.com/acdp-codebuild-project: ${{ steps.acdpDeploy.output.codeBuildProjectArn }}
+            backstage.io/techdocs-entity: component:default/acdp-module-on-github-docs
+          description: ${{parameters.description}}
+          labels:
+            templateName: acdp-module-on-github
+          name: ${{parameters.componentId}}
+        spec:
+          lifecycle: experimental
+          owner: ${{parameters.owner}}
+          type: service
+    name: S3 Catalog Write
+  - action: catalog:register
+    id: register
+    input:
+      catalogInfoUrl: ${{ steps.s3CatalogWrite.output.s3Url }}
+    name: Register
+  type: service
