@@ -56,7 +56,7 @@ spec:
         ui:disabled: true
     required:
     - appUniqueId
-    - cfnTemplateKey
+    - cfnTemplateS3Url
     title: Provide the Module Configuration
   steps:
   - action: aws:acdp:fetch
