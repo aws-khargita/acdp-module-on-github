@@ -48,10 +48,10 @@ spec:
         description: Application unique identifier used to uniquely name resources within the stack
         title: App Unique ID
         type: string
-      cfnTemplateKey:
-        default: acdp-module-on-github/acdp-module-on-github.template
-        description: Location of module CloudFormation template in s3.
-        title: Relative template s3 key
+      cfnTemplateS3Url:
+        default: https://acdp-assets-682718573004-us-east-1.s3.amazonaws.com/connected-mobility-solution-on-aws/v1.1.0/cms-sample-on-aws/cms-sample-on-aws.template
+        description: URL of module CloudFormation template in s3.
+        title: CloudFormation Template S3 URL
         type: string
         ui:disabled: true
     required:
@@ -59,17 +59,13 @@ spec:
     - cfnTemplateKey
     title: Provide the Module Configuration
   steps:
-  - action: aws:acdp:deploy
-    id: acdpDeploy
+  - action: aws:acdp:fetch
+    id: acdpFetch
     input:
-      cfnTemplateKey: ${{ parameters.cfnTemplateKey }}
-      componentId: ${{ parameters.componentId }}
-      moduleParameters:
-      - name: APP_UNIQUE_ID
-        value: ${{ parameters.appUniqueId }}
-    name: ACDP Deploy
-  - action: aws:s3:catalog:write
-    id: s3CatalogWrite
+      path: ./
+    name: ACDP Fetch Assets
+  - action: aws:acdp:s3:catalog:write
+    id: acdpS3CatalogWrite
     input:
       componentId: ${{ parameters.componentId }}
       entity:
@@ -77,20 +73,28 @@ spec:
         kind: Component
         metadata:
           annotations:
-            aws.amazon.com/acdp-codebuild-project: ${{ steps.acdpDeploy.output.codeBuildProjectArn }}
-            backstage.io/techdocs-entity: component:default/acdp-module-on-github-docs
+            backstage.io/techdocs-ref: dir:./.acdp/site
           description: ${{parameters.description}}
-          labels:
-            templateName: acdp-module-on-github
           name: ${{parameters.componentId}}
         spec:
           lifecycle: experimental
           owner: ${{parameters.owner}}
           type: service
-    name: S3 Catalog Write
+      sourceDir: ${{ steps.acdpFetch.output.tmpDirPath }}
+    name: ACDP S3 Catalog Write
+  - action: aws:acdp:deploy
+    id: acdpDeploy
+    input:
+      catalogInfoS3Url: ${{ steps.acdpS3CatalogWrite.output.s3Url }}
+      cfnTemplateS3Url: ${{ parameters.cfnTemplateS3Url }}
+      componentId: ${{ parameters.componentId }}
+      moduleParameters:
+      - name: APP_UNIQUE_ID
+        value: ${{ parameters.appUniqueId }}
+    name: ACDP Deploy
   - action: catalog:register
     id: register
     input:
-      catalogInfoUrl: ${{ steps.s3CatalogWrite.output.s3Url }}
+      catalogInfoUrl: ${{ steps.acdpS3CatalogWrite.output.s3Url }}
     name: Register
   type: service
