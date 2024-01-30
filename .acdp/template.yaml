@@ -48,15 +48,15 @@ spec:
         description: Application unique identifier used to uniquely name resources within the stack
         title: App Unique ID
         type: string
-      cfnTemplateS3Url:
-        default: https://acdp-assets-682718573004-us-east-1.s3.amazonaws.com/connected-mobility-solution-on-aws/v1.1.0/cms-sample-on-aws/cms-sample-on-aws.template
+      cfnTemplateS3Key:
+        default: cms-sample-on-aws/cms-sample-on-aws.template
         description: URL of module CloudFormation template in s3.
         title: CloudFormation Template S3 URL
         type: string
         ui:disabled: true
     required:
     - appUniqueId
-    - cfnTemplateS3Url
+    - cfnTemplateS3Key
     title: Provide the Module Configuration
   steps:
   - action: aws:acdp:s3:catalog:write
@@ -68,6 +68,10 @@ spec:
         kind: Component
         metadata:
           annotations:
+            aws.amazon.com/acdp-deploy-buildspec: dir:./deploy.buildspec.yaml
+            aws.amazon.com/acdp-update-buildspec: dir:./update.buildspec.yaml
+            aws.amazon.com/acdp-teardown-buildspec: dir:./teardown.buildspec.yaml
+            aws.amazon.com/acdp-cloudformation-template: url:https://acdp-assets-682718573004-us-east-1.s3.amazonaws.com/connected-mobility-solution-on-aws/v1.1.0/cms-sample-on-aws/cms-sample-on-aws.template
             backstage.io/techdocs-ref: dir:.
           description: ${{parameters.description}}
           name: ${{parameters.componentId}}
@@ -91,9 +95,7 @@ spec:
   - action: aws:acdp:deploy
     id: acdpDeploy
     input:
-      catalogInfoS3Url: ${{ steps.register.output.catalogInfoUrl }}
-      cfnTemplateS3Url: ${{ parameters.cfnTemplateS3Url }}
-      componentId: ${{ parameters.componentId }}
+      entityRef: ${{ steps.register.output.entityRef }}
       moduleParameters:
       - name: APP_UNIQUE_ID
         value: ${{ parameters.appUniqueId }}
