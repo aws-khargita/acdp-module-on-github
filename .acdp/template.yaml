@@ -59,11 +59,6 @@ spec:
     - cfnTemplateS3Url
     title: Provide the Module Configuration
   steps:
-  - action: aws:acdp:fetch
-    id: acdpFetch
-    input:
-      path: ./
-    name: ACDP Fetch Assets
   - action: aws:acdp:s3:catalog:write
     id: acdpS3CatalogWrite
     input:
@@ -73,28 +68,34 @@ spec:
         kind: Component
         metadata:
           annotations:
-            backstage.io/techdocs-ref: dir:./.acdp/site
+            backstage.io/techdocs-ref: dir:.
           description: ${{parameters.description}}
           name: ${{parameters.componentId}}
+          namespace: acdp
         spec:
           lifecycle: experimental
           owner: ${{parameters.owner}}
           type: service
-      sourceDir: ${{ steps.acdpFetch.output.tmpDirPath }}
     name: ACDP S3 Catalog Write
+  - action: aws:acdp:copy
+    id: acdpCopy
+    input:
+      srcPath: ./
+      destS3KeyPrefix: ${{ steps.acdpS3CatalogWrite.output.catalogEntityS3KeyPrefix }}
+    name: ACDP Copy Assets
+  - action: catalog:register
+    id: register
+    input:
+      catalogInfoUrl: ${{ steps.acdpS3CatalogWrite.output.s3Url }}
+    name: Register
   - action: aws:acdp:deploy
     id: acdpDeploy
     input:
-      catalogInfoS3Url: ${{ steps.acdpS3CatalogWrite.output.s3Url }}
+      catalogInfoS3Url: ${{ steps.register.output.catalogInfoUrl }}
       cfnTemplateS3Url: ${{ parameters.cfnTemplateS3Url }}
       componentId: ${{ parameters.componentId }}
       moduleParameters:
       - name: APP_UNIQUE_ID
         value: ${{ parameters.appUniqueId }}
     name: ACDP Deploy
-  - action: catalog:register
-    id: register
-    input:
-      catalogInfoUrl: ${{ steps.acdpS3CatalogWrite.output.s3Url }}
-    name: Register
   type: service
